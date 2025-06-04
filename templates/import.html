@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}數據匯入 - CSV 數據分析系統{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="bi bi-upload"></i> CSV 數據匯入
+        </h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">上傳 CSV 檔案</h5>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">選擇檔案</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="encoding" class="form-label">檔案編碼</label>
+                        <select class="form-select" id="encoding" name="encoding">
+                            <option value="utf-8">UTF-8</option>
+                            <option value="big5">Big5</option>
+                            <option value="gb2312">GB2312</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> 開始匯入
+                    </button>
+                </form>
+                
+                <div id="result" class="mt-4" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">檔案格式說明</h6>
+            </div>
+            <div class="card-body">
+                <h6>檔案名稱格式：</h6>
+                <code>SN_YYYYMMDD_HHMMSS_(left/right/rec1/rec2)</code>
+                
+                <h6 class="mt-3">範例：</h6>
+                <small>32120121ED0755130005_20250522_084534_left.csv</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const resultDiv = document.getElementById('result');
+    
+    try {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div class="alert alert-info">上傳中...</div>';
+        
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> ${result.message}
+                </div>`;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${result.message}
+                </div>`;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> 上傳失敗：${error.message}
+            </div>`;
+    }
+});
+</script>
+{% endblock %}

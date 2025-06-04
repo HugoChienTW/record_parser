@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}系統概覽 - CSV 數據分析系統{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center mb-5">
+            <h1 class="display-4 text-primary mb-3">
+                <i class="bi bi-graph-up-arrow"></i> CSV 數據分析系統
+            </h1>
+            <p class="lead text-muted">專業的測試數據管理與分析平台</p>
+        </div>
+    </div>
+</div>
+
+<!-- 統計卡片 -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-4">
+        <div class="stats-card text-center">
+            <div class="stats-number" id="totalSns">{{ stats.total_sns or 0 }}</div>
+            <div class="stats-label">
+                <i class="bi bi-cpu"></i> 設備總數 (SN)
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="stats-card text-center">
+            <div class="stats-number" id="totalRecords">{{ stats.total_records or 0 }}</div>
+            <div class="stats-label">
+                <i class="bi bi-database"></i> 測試記錄總數
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="stats-card text-center">
+            <div class="stats-number" id="latestDate">{{ stats.latest_date|format_date if stats.latest_date else '-' }}</div>
+            <div class="stats-label">
+                <i class="bi bi-calendar"></i> 最新測試日期
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="stats-card text-center">
+            <div class="stats-number" id="testTypes">{{ (stats.test_type_stats.values() | list | length) if stats.test_type_stats else 0 }}</div>
+            <div class="stats-label">
+                <i class="bi bi-gear"></i> 測試類型數量
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 功能導航 -->
+<div class="row mb-5">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-upload"></i> 數據匯入
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <i class="bi bi-file-earmark-arrow-up display-4 text-primary mb-3"></i>
+                <p class="card-text">上傳 CSV 檔案，自動解析測試數據並匯入資料庫</p>
+                <div class="mb-3">
+                    <small class="text-muted">
+                        支援格式：SN_YYYYMMDD_HHMMSS_(left/right/rec1/rec2)
+                    </small>
+                </div>
+                <a href="{{ url_for('import_page') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> 開始匯入
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-search"></i> 數據搜尋
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <i class="bi bi-search display-4 text-success mb-3"></i>
+                <p class="card-text">根據 SN、日期、測試類型等條件搜尋測試記錄</p>
+                <div class="mb-3">
+                    <small class="text-muted">
+                        支援頻率數據詳細查看與比較分析
+                    </small>
+                </div>
+                <a href="{{ url_for('search_page') }}" class="btn btn-success">
+                    <i class="bi bi-search"></i> 開始搜尋
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up"></i> 數據分析
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <i class="bi bi-bar-chart display-4 text-warning mb-3"></i>
+                <p class="card-text">進行頻率分析、趨勢分析、設備比較等</p>
+                <div class="mb-3">
+                    <small class="text-muted">
+                        多維度數據分析與視覺化展示
+                    </small>
+                </div>
+                <a href="{{ url_for('analysis_page') }}" class="btn btn-warning">
+                    <i class="bi bi-graph-up"></i> 開始分析
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近活動與統計 -->
+<div class="row mb-5">
+    {% if stats.test_type_stats %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i> 測試類型分布
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>測試類型</th>
+                                <th>記錄數量</th>
+                                <th>百分比</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for type, count in stats.test_type_stats.items() %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary">{{ type }}</span>
+                                </td>
+                                <td><strong>{{ count }}</strong></td>
+                                <td>
+                                    {% set percentage = ((count / stats.total_records) * 100) | round(1) %}
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-success" style="width: {{ percentage }}%"></div>
+                                    </div>
+                                    <small>{{ percentage }}%</small>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-info btn-sm" onclick="viewTypeDetails('{{ type }}')">
+                                        <i class="bi bi-eye"></i> 查看
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> 系統狀態
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="bi bi-check-circle text-success display-6"></i>
+                            <div class="mt-2">
+                                <strong>系統狀態</strong><br>
+                                <span class="text-success">正常運行</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="bi bi-database text-info display-6"></i>
+                            <div class="mt-2">
+                                <strong>資料庫</strong><br>
+                                <span class="text-info">連接正常</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>快速操作：</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="refreshStats()">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新統計
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="exportReport()">
+                            <i class="bi bi-download"></i> 導出報告
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 熱門 SN 排行 -->
+{% if stats.top_sns %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-trophy"></i> 測試次數最多的設備 (Top 10)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>設備序號 (SN)</th>
+                                <th>測試次數</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in stats.top_sns[:10] %}
+                            <tr>
+                                <td>
+                                    {% if loop.index <= 3 %}
+                                        <i class="bi bi-award text-warning"></i>
+                                    {% endif %}
+                                    <strong>{{ loop.index }}</strong>
+                                </td>
+                                <td>
+                                    <code>{{ item.sn }}</code>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info fs-6">{{ item.count }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="viewSnDetails('{{ item.sn }}')">
+                                            <i class="bi bi-eye"></i> 查看
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="analyzeSnData('{{ item.sn }}')">
+                                            <i class="bi bi-graph-up"></i> 分析
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 快速開始指南 -->
+{% if not stats.total_records %}
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightbulb"></i> 快速開始指南
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="p-3">
+                            <i class="bi bi-1-circle-fill display-4 text-info mb-2"></i>
+                            <h6>準備 CSV 檔案</h6>
+                            <p class="small text-muted">
+                                確保檔案名稱格式為：<br>
+                                <code>SN_YYYYMMDD_HHMMSS_(left/right/rec1/rec2)</code>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="p-3">
+                            <i class="bi bi-2-circle-fill display-4 text-info mb-2"></i>
+                            <h6>上傳並匯入</h6>
+                            <p class="small text-muted">
+                                點擊「數據匯入」，選擇或拖放 CSV 檔案進行匯入
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="p-3">
+                            <i class="bi bi-3-circle-fill display-4 text-info mb-2"></i>
+                            <h6>搜尋與分析</h6>
+                            <p class="small text-muted">
+                                使用搜尋功能查找記錄，查看詳細的頻率數據
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <a href="{{ url_for('import_page') }}" class="btn btn-info">
+                        <i class="bi bi-arrow-right-circle"></i> 立即開始匯入數據
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 定期更新統計資訊（每30秒）
+    setInterval(refreshStats, 30000);
+    
+    // 頁面載入時的動畫效果
+    animateCounters();
+});
+
+function animateCounters() {
+    // 數字計數動畫
+    const counters = document.querySelectorAll('.stats-number');
+    counters.forEach(counter => {
+        const target = parseInt(counter.textContent) || 0;
+        if (target > 0) {
+            let current = 0;
+            const increment = target / 20;
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    counter.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    counter.textContent = Math.floor(current);
+                }
+            }, 50);
+        }
+    });
+}
+
+async function refreshStats() {
+    try {
+        const response = await utils.apiRequest('/api/statistics');
+        if (response.success) {
+            updateStatistics(response.data);
+        }
+    } catch (error) {
+        console.error('更新統計資訊失敗:', error);
+    }
+}
+
+function updateStatistics(stats) {
+    // 更新統計數字
+    document.getElementById('totalSns').textContent = stats.total_sns || 0;
+    document.getElementById('totalRecords').textContent = stats.total_records || 0;
+    document.getElementById('latestDate').textContent = formatDate(stats.latest_date) || '-';
+    document.getElementById('testTypes').textContent = Object.keys(stats.test_type_stats || {}).length;
+    
+    // 重新執行動畫
+    animateCounters();
+}
+
+function viewTypeDetails(testType) {
+    // 跳轉到搜尋頁面，並預設測試類型
+    window.location.href = `/search?test_type=${testType}`;
+}
+
+function viewSnDetails(sn) {
+    // 跳轉到搜尋頁面，並預設 SN
+    window.location.href = `/search?sn=${sn}`;
+}
+
+function analyzeSnData(sn) {
+    // 跳轉到分析頁面
+    window.location.href = `/analysis?sn=${sn}`;
+}
+
+function exportReport() {
+    utils.showNotification('報告導出功能開發中...', 'info');
+}
+
+// 本地格式化函數
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    if (dateString.length === 8) {
+        return `${dateString.slice(0,4)}-${dateString.slice(4,6)}-${dateString.slice(6,8)}`;
+    }
+    return dateString;
+}
+
+// 頁面加載完成後的初始化
+window.addEventListener('load', function() {
+    // 檢查系統狀態
+    checkSystemStatus();
+});
+
+async function checkSystemStatus() {
+    try {
+        const response = await utils.apiRequest('/api/statistics');
+        if (response.success) {
+            // 系統正常
+            console.log('系統狀態正常');
+        }
+    } catch (error) {
+        // 顯示錯誤狀態
+        utils.showNotification('系統狀態檢查失敗', 'warning');
+    }
+}
+</script>
+{% endblock %}

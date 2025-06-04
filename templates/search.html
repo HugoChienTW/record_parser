@@ -1,0 +1,1482 @@
+{% extends "base.html" %}
+
+{% block title %}搜尋記錄 - CSV 數據分析系統{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="bi bi-search"></i> 搜尋測試記錄
+        </h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-funnel"></i> 搜尋條件
+                </h6>
+            </div>
+            <div class="card-body">
+                <form id="searchForm">
+                    <div class="mb-3">
+                        <label for="sn" class="form-label">設備序號 (SN)</label>
+                        <input type="text" class="form-control" id="sn" placeholder="輸入 SN">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="testType" class="form-label">測試類型</label>
+                        <select class="form-select" id="testType">
+                            <option value="">全部</option>
+                            <option value="left">left</option>
+                            <option value="right">right</option>
+                            <option value="rec1">rec1</option>
+                            <option value="rec2">rec2</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="testDate" class="form-label">測試日期</label>
+                        <input type="date" class="form-control" id="testDate">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">日期範圍</label>
+                        <div class="mb-2">
+                            <label for="startDate" class="form-label small text-muted">開始日期</label>
+                            <input type="date" class="form-control" id="startDate">
+                        </div>
+                        <div>
+                            <label for="endDate" class="form-label small text-muted">結束日期</label>
+                            <input type="date" class="form-control" id="endDate">
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> 搜尋
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearSearch()">
+                            <i class="bi bi-x-circle"></i> 清除條件
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="loadAllRecords()">
+                            <i class="bi bi-list"></i> 顯示所有記錄
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 搜尋統計 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-bar-chart"></i> 搜尋統計
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="searchStats">
+                    <div class="text-muted small">暫無搜尋結果</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-clock-history"></i> 測試記錄時間軸
+                </h6>
+                <div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" id="viewTimeline" onclick="setViewMode('timeline')">
+                            <i class="bi bi-diagram-3"></i> 時間軸
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="viewList" onclick="setViewMode('list')">
+                            <i class="bi bi-list"></i> 清單
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-success btn-sm ms-2" onclick="exportData()">
+                        <i class="bi bi-download"></i> 匯出
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 載入中 -->
+                <div id="loadingContainer" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中...</span>
+                    </div>
+                    <div class="mt-2">正在搜尋...</div>
+                </div>
+                
+                <!-- 時間軸視圖 -->
+                <div id="timelineView" style="display: none;">
+                    <div class="timeline-container">
+                        <div id="timelineContent"></div>
+                    </div>
+                    
+                    <!-- 分頁 -->
+                    <nav aria-label="搜尋結果分頁" class="mt-4">
+                        <ul class="pagination justify-content-center" id="timelinePagination">
+                        </ul>
+                    </nav>
+                </div>
+                
+                <!-- 清單視圖 -->
+                <div id="listView" style="display: none;">
+                    <div id="listContent"></div>
+                    
+                    <!-- 分頁 -->
+                    <nav aria-label="搜尋結果分頁" class="mt-4">
+                        <ul class="pagination justify-content-center" id="listPagination">
+                        </ul>
+                    </nav>
+                </div>
+                
+                <!-- 初始狀態 -->
+                <div id="initialState" class="text-center py-5">
+                    <i class="bi bi-search display-4 text-muted"></i>
+                    <div class="mt-2 text-muted">請輸入搜尋條件查找記錄</div>
+                    <button class="btn btn-outline-primary mt-2" onclick="loadAllRecords()">
+                        <i class="bi bi-list"></i> 顯示所有記錄
+                    </button>
+                </div>
+                
+                <!-- 無結果 -->
+                <div id="noResultsContainer" class="text-center py-5" style="display: none;">
+                    <i class="bi bi-inbox display-4 text-muted"></i>
+                    <div class="mt-2 text-muted">未找到符合條件的記錄</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 記錄詳情模態框 -->
+<div class="modal fade" id="recordModal" tabindex="-1" aria-labelledby="recordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="recordModalLabel">
+                    <i class="bi bi-info-circle"></i> 測試記錄詳情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="recordModalBody">
+                <!-- 詳情內容會在這裡動態載入 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                <button type="button" class="btn btn-primary" onclick="analyzeCurrentRecord()">
+                    <i class="bi bi-graph-up"></i> 進行分析
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 時間軸樣式 */
+.timeline-container {
+    position: relative;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 20px 0;
+}
+
+/* 改善日期輸入框的顯示 */
+input[type="date"] {
+    width: 100%;
+    padding: 8px 12px;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    padding: 2px;
+}
+
+/* 日期範圍標籤樣式 */
+.form-label.small {
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 180px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 170px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #667eea, #764ba2);
+}
+
+/* 時間刻度標籤 */
+.time-scale {
+    position: absolute;
+    left: -180px;
+    width: 160px;
+    text-align: right;
+    z-index: 10;
+    top: 0;
+}
+
+.time-scale-major {
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    border-left: 4px solid #667eea;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.time-scale-date {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 0.9rem;
+    line-height: 1.2;
+}
+
+.time-scale-time {
+    color: #666;
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+.time-scale-relative {
+    color: #999;
+    font-size: 0.7rem;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+/* 時間分組分隔線 */
+.time-divider {
+    position: relative;
+    margin: 30px 0;
+    text-align: center;
+}
+
+.time-divider::before {
+    content: '';
+    position: absolute;
+    left: -170px;
+    top: 50%;
+    width: calc(100% + 170px);
+    height: 1px;
+    background: linear-gradient(to right, transparent, #ddd, transparent);
+}
+
+.time-divider-label {
+    display: inline-block;
+    background: #f8f9fa;
+    padding: 5px 15px;
+    border-radius: 15px;
+    border: 1px solid #ddd;
+    color: #666;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.timeline-item:hover {
+    transform: translateX(5px);
+}
+
+.timeline-node {
+    position: absolute;
+    left: -177px;
+    top: 15px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid #667eea;
+    transition: all 0.3s ease;
+    z-index: 5;
+}
+
+.timeline-item:hover .timeline-node {
+    transform: scale(1.3);
+    border-color: #764ba2;
+    box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+}
+
+.timeline-item.active .timeline-node {
+    background: #667eea;
+    border-color: #764ba2;
+    transform: scale(1.2);
+}
+
+/* 特殊節點樣式 */
+.timeline-node.recent {
+    border-color: #27ae60;
+    animation: pulse 2s infinite;
+}
+
+.timeline-node.today {
+    border-color: #e74c3c;
+    background: #e74c3c;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(39, 174, 96, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); }
+}
+
+.timeline-content {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+    position: relative;
+    z-index: 2;
+}
+
+.timeline-item:hover .timeline-content {
+    border-color: #667eea;
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.15);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.timeline-sn {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.timeline-type {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.timeline-type.left { background: #e3f2fd; color: #1976d2; }
+.timeline-type.right { background: #f3e5f5; color: #7b1fa2; }
+.timeline-type.rec1 { background: #e8f5e8; color: #388e3c; }
+.timeline-type.rec2 { background: #fff3e0; color: #f57c00; }
+
+.timeline-time {
+    font-size: 1rem;
+    color: #666;
+    margin-top: 5px;
+    font-weight: 500;
+}
+
+.timeline-types {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.timeline-details {
+    display: none;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.test-type-item {
+    margin-bottom: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.test-type-header {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.test-type-header:hover {
+    background: #e9ecef;
+}
+
+.test-type-details {
+    padding: 15px;
+    background: white;
+    animation: slideDown 0.3s ease-out;
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+}
+
+.test-type-header:hover .toggle-icon {
+    transform: scale(1.1);
+}
+
+.frequency-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.frequency-item {
+    text-align: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.frequency-value {
+    font-weight: bold;
+    color: #2c3e50;
+    display: block;
+}
+
+.frequency-label {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* 展開動畫 */
+.timeline-details.show {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 500px;
+    }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    .timeline {
+        padding-left: 20px;
+    }
+    
+    .timeline::before {
+        left: 15px;
+    }
+    
+    .time-scale {
+        position: static;
+        width: auto;
+        text-align: left;
+        margin-bottom: 10px;
+        left: auto;
+    }
+    
+    .time-scale-major {
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .timeline-node {
+        left: -12px;
+    }
+    
+    .timeline-content {
+        margin-left: 0;
+    }
+    
+    .frequency-grid {
+        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+        gap: 8px;
+    }
+    
+    .time-divider::before {
+        left: -15px;
+        width: calc(100% + 15px);
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let currentParams = {};
+let currentRecordId = null;
+let currentViewMode = 'timeline';
+let allRecords = [];
+
+// 主要頻率列表
+const mainFrequencies = ['630', '800', '1000', '1250', '1600', '2000'];
+const allFrequencies = ['100', '125', '160', '200', '250', '315', '400', '500', '630', '800', '1000', '1250', '1600', '2000'];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 搜尋表單提交
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        performSearch(1);
+    });
+    
+    // 設定預設視圖模式
+    setViewMode('timeline');
+});
+
+function performSearch(page = 1) {
+    currentPage = page;
+    
+    // 構建搜尋參數
+    const params = new URLSearchParams();
+    
+    const sn = document.getElementById('sn').value.trim();
+    if (sn) params.append('sn', sn);
+    
+    const testType = document.getElementById('testType').value;
+    if (testType) params.append('test_type', testType);
+    
+    const testDate = document.getElementById('testDate').value;
+    if (testDate) {
+        const formattedDate = testDate.replace(/-/g, '');
+        params.append('test_date', formattedDate);
+    }
+    
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    if (startDate && endDate) {
+        params.append('start_date', startDate.replace(/-/g, ''));
+        params.append('end_date', endDate.replace(/-/g, ''));
+    }
+    
+    // 顯示載入中
+    showLoading();
+    
+    console.log('搜尋參數:', Object.fromEntries(params));
+    
+    // 如果是時間軸視圖且使用日期範圍搜尋，獲取所有數據進行分組
+    const shouldFetchAllData = currentViewMode === 'timeline' && startDate && endDate;
+    
+    if (shouldFetchAllData) {
+        // 獲取所有數據進行分組
+        fetchAllRecordsForGrouping(params);
+    } else {
+        // 正常分頁搜尋
+        params.append('page', page);
+        params.append('per_page', 50);
+        
+        currentParams = Object.fromEntries(params);
+        
+        fetch(`/api/search?${params}`)
+            .then(response => response.json())
+            .then(result => {
+                console.log('API 回應:', result);
+                if (result.success) {
+                    allRecords = result.data;
+                    displayResults(result.data, result.pagination);
+                    updateSearchStats(result.data, result.pagination);
+                } else {
+                    showNoResults();
+                    showNotification(result.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('搜尋錯誤:', error);
+                showNoResults();
+                showNotification('搜尋失敗，請稍後再試', 'error');
+            });
+    }
+}
+
+// 新增：獲取所有記錄進行分組的函數
+function fetchAllRecordsForGrouping(baseParams) {
+    console.log('獲取所有記錄進行分組...');
+    
+    // 設定大的 per_page 值來獲取所有記錄
+    const params = new URLSearchParams(baseParams);
+    params.append('page', 1);
+    params.append('per_page', 1000); // 獲取更多記錄
+    
+    currentParams = Object.fromEntries(params);
+    
+    fetch(`/api/search?${params}`)
+        .then(response => response.json())
+        .then(result => {
+            console.log('API 回應 (所有記錄):', result);
+            if (result.success) {
+                allRecords = result.data;
+                
+                // 如果總記錄數超過當前獲取的數量，需要分批獲取
+                if (result.pagination.total > result.data.length) {
+                    console.log('需要分批獲取，總記錄數:', result.pagination.total, '當前獲取:', result.data.length);
+                    fetchAllRecordsInBatches(baseParams, result.pagination.total);
+                } else {
+                    // 直接顯示結果
+                    displayResults(result.data, result.pagination);
+                    updateSearchStats(result.data, result.pagination);
+                }
+            } else {
+                showNoResults();
+                showNotification(result.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('搜尋錯誤:', error);
+            showNoResults();
+            showNotification('搜尋失敗，請稍後再試', 'error');
+        });
+}
+
+// 新增：分批獲取所有記錄
+function fetchAllRecordsInBatches(baseParams, totalRecords) {
+    const batchSize = 1000;
+    const totalPages = Math.ceil(totalRecords / batchSize);
+    const allRecordsArray = [];
+    let completedRequests = 0;
+    
+    console.log('分批獲取記錄，總頁數:', totalPages);
+    
+    for (let page = 1; page <= totalPages; page++) {
+        const params = new URLSearchParams(baseParams);
+        params.append('page', page);
+        params.append('per_page', batchSize);
+        
+        fetch(`/api/search?${params}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    allRecordsArray.push(...result.data);
+                    completedRequests++;
+                    
+                    console.log(`完成批次 ${completedRequests}/${totalPages}, 累積記錄數: ${allRecordsArray.length}`);
+                    
+                    // 所有批次完成
+                    if (completedRequests === totalPages) {
+                        allRecords = allRecordsArray;
+                        
+                        // 創建虛擬分頁資訊
+                        const virtualPagination = {
+                            page: 1,
+                            pages: 1,
+                            total: allRecordsArray.length,
+                            per_page: allRecordsArray.length
+                        };
+                        
+                        console.log('所有記錄獲取完成，總計:', allRecordsArray.length);
+                        displayResults(allRecordsArray, virtualPagination);
+                        updateSearchStats(allRecordsArray, virtualPagination);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error(`批次 ${page} 獲取失敗:`, error);
+                completedRequests++;
+                
+                // 即使有錯誤也要檢查是否完成
+                if (completedRequests === totalPages) {
+                    allRecords = allRecordsArray;
+                    const virtualPagination = {
+                        page: 1,
+                        pages: 1,
+                        total: allRecordsArray.length,
+                        per_page: allRecordsArray.length
+                    };
+                    displayResults(allRecordsArray, virtualPagination);
+                    updateSearchStats(allRecordsArray, virtualPagination);
+                }
+            });
+    }
+}
+
+function loadAllRecords() {
+    document.getElementById('searchForm').reset();
+    performSearch(1);
+}
+
+function clearSearch() {
+    document.getElementById('searchForm').reset();
+    hideAllContainers();
+    document.getElementById('initialState').style.display = 'block';
+    document.getElementById('searchStats').innerHTML = '<div class="text-muted small">暫無搜尋結果</div>';
+}
+
+function setViewMode(mode) {
+    currentViewMode = mode;
+    
+    document.getElementById('viewTimeline').className = 
+        mode === 'timeline' ? 'btn btn-primary' : 'btn btn-outline-primary';
+    document.getElementById('viewList').className = 
+        mode === 'list' ? 'btn btn-primary' : 'btn btn-outline-secondary';
+    
+    document.getElementById('timelineView').style.display = mode === 'timeline' ? 'block' : 'none';
+    document.getElementById('listView').style.display = mode === 'list' ? 'block' : 'none';
+    
+    if (allRecords.length > 0) {
+        if (mode === 'timeline') {
+            displayTimelineView(allRecords);
+        } else {
+            displayListView(allRecords);
+        }
+    }
+}
+
+function showLoading() {
+    hideAllContainers();
+    document.getElementById('loadingContainer').style.display = 'block';
+}
+
+function showNoResults() {
+    hideAllContainers();
+    document.getElementById('noResultsContainer').style.display = 'block';
+}
+
+function hideAllContainers() {
+    document.getElementById('loadingContainer').style.display = 'none';
+    document.getElementById('timelineView').style.display = 'none';
+    document.getElementById('listView').style.display = 'none';
+    document.getElementById('initialState').style.display = 'none';
+    document.getElementById('noResultsContainer').style.display = 'none';
+}
+
+function displayResults(data, pagination) {
+    hideAllContainers();
+    
+    if (data.length === 0) {
+        showNoResults();
+        return;
+    }
+    
+    if (currentViewMode === 'timeline') {
+        document.getElementById('timelineView').style.display = 'block';
+        displayTimelineView(data);
+        displayPagination(pagination, 'timelinePagination');
+    } else {
+        document.getElementById('listView').style.display = 'block';
+        displayListView(data);
+        displayPagination(pagination, 'listPagination');
+    }
+}
+
+// 按 SN + 日期時間分組，但保持時間軸順序
+function groupRecordsBySnDateTime(records) {
+    const groups = {};
+    
+    console.log('準備分組的記錄:', records.length);
+    console.log('記錄詳情:', records);
+    
+    records.forEach((record, index) => {
+        const groupKey = record.sn + '_' + record.test_date + '_' + record.test_time;
+        
+        console.log('記錄 ' + index + ': SN=' + record.sn + ', Date=' + record.test_date + ', Time=' + record.test_time + ', Type=' + record.test_type + ', Key=' + groupKey);
+        
+        if (!groups[groupKey]) {
+            groups[groupKey] = {
+                sn: record.sn,
+                test_date: record.test_date,
+                test_time: record.test_time,
+                datetime: record.test_date + record.test_time,
+                records: []
+            };
+        }
+        groups[groupKey].records.push(record);
+    });
+    
+    const sortedGroups = {};
+    Object.keys(groups)
+        .sort((a, b) => {
+            return groups[b].datetime.localeCompare(groups[a].datetime);
+        })
+        .forEach(key => {
+            sortedGroups[key] = groups[key];
+        });
+    
+    console.log('分組統計:');
+    Object.keys(sortedGroups).forEach(key => {
+        const group = sortedGroups[key];
+        const testTypes = group.records.map(r => r.test_type);
+        console.log(key + ': ' + group.records.length + ' 個記錄, 測試類型: ' + testTypes.join(', '));
+    });
+    
+    console.log('分組結果詳情:', sortedGroups);
+    
+    return sortedGroups;
+}
+
+function displayTimelineView(records) {
+    const container = document.getElementById('timelineContent');
+    
+    console.log('===== 開始顯示時間軸 =====');
+    console.log('原始記錄數量:', records.length);
+    
+    const sortedRecords = records.sort((a, b) => {
+        const dateTimeA = a.test_date + a.test_time;
+        const dateTimeB = b.test_date + b.test_time;
+        return dateTimeB.localeCompare(dateTimeA);
+    });
+    
+    const groupedRecords = groupRecordsBySnDateTime(sortedRecords);
+    
+    console.log('分組後數量:', Object.keys(groupedRecords).length);
+    
+    let html = '<div class="timeline">';
+    let previousDate = null;
+    let globalIndex = 0;
+    
+    Object.values(groupedRecords).forEach((group, index) => {
+        const firstRecord = group.records[0];
+        const dateInfo = parseDateKey(firstRecord.test_date);
+        const timeInfo = getTimeInfo(firstRecord.test_date, firstRecord.test_time);
+        
+        const currentDate = firstRecord.test_date;
+        const shouldShowDateDivider = previousDate && currentDate !== previousDate;
+        
+        if (shouldShowDateDivider) {
+            html += '<div class="time-divider">';
+            html += '<div class="time-divider-label">';
+            html += '<i class="bi bi-calendar"></i> ' + dateInfo.label;
+            html += '</div>';
+            html += '</div>';
+        }
+        
+        const showTimeScale = index === 0 || shouldShowDateDivider;
+        const testTypes = group.records.map(r => r.test_type);
+        const isMultipleTypes = testTypes.length > 1;
+        
+        html += '<div class="timeline-item ' + (isMultipleTypes ? 'timeline-group' : '') + '" onclick="toggleTimelineDetails(' + index + ', ' + firstRecord.id + ', ' + isMultipleTypes + ')">';
+        
+        if (showTimeScale) {
+            html += '<div class="time-scale">';
+            html += '<div class="time-scale-major">';
+            html += '<div class="time-scale-date">';
+            html += '<i class="bi bi-calendar3"></i> ' + dateInfo.display;
+            html += '</div>';
+            html += '<div class="time-scale-relative">' + timeInfo.relative + '</div>';
+            html += '</div>';
+            html += '</div>';
+        }
+        
+        html += '<div class="timeline-node ' + timeInfo.nodeClass + '"></div>';
+        html += '<div class="timeline-content">';
+        html += '<div class="timeline-header">';
+        html += '<div>';
+        html += '<div class="timeline-sn">';
+        html += '<i class="bi bi-cpu"></i> ' + firstRecord.sn;
+        html += '</div>';
+        html += '<div class="timeline-time">';
+        html += '<i class="bi bi-clock"></i> ' + formatTime(firstRecord.test_time);
+        html += '<span class="ms-2 text-muted">(' + timeInfo.timeAgo + ')</span>';
+        html += '</div>';
+        html += '</div>';
+        html += '<div class="timeline-types">';
+        
+        testTypes.forEach(type => {
+            html += '<span class="timeline-type ' + type + ' me-1">' + type + '</span>';
+        });
+        
+        if (isMultipleTypes) {
+            html += '<span class="badge bg-info ms-2">' + testTypes.length + ' 項測試</span>';
+        }
+        
+        html += '</div>';
+        html += '</div>';
+        
+        html += '<div class="timeline-details" id="details-' + index + '">';
+        
+        if (isMultipleTypes) {
+            group.records.forEach((record, recordIndex) => {
+                const currentGlobalIndex = globalIndex + recordIndex;
+                html += '<div class="test-type-item">';
+                html += '<div class="test-type-header" onclick="event.stopPropagation(); toggleTypeDetails(\'type-' + currentGlobalIndex + '\', ' + record.id + ')">';
+                html += '<div class="d-flex justify-content-between align-items-center">';
+                html += '<div>';
+                html += '<span class="timeline-type ' + record.test_type + '">' + record.test_type + '</span>';
+                html += '<span class="ms-2 text-muted small">測試類型</span>';
+                html += '</div>';
+                html += '<i class="bi bi-chevron-down toggle-icon"></i>';
+                html += '</div>';
+                html += '</div>';
+                
+                html += '<div class="test-type-details" id="type-' + currentGlobalIndex + '" style="display: none;">';
+                html += '<h6><i class="bi bi-graph-up"></i> 頻率測試數據：</h6>';
+                html += '<div class="frequency-grid">';
+                
+                mainFrequencies.forEach(freq => {
+                    const value = record['freq_' + freq];
+                    html += '<div class="frequency-item">';
+                    html += '<span class="frequency-value">' + (value !== null && value !== undefined ? value : '-') + '</span>';
+                    html += '<div class="frequency-label">' + freq + 'Hz</div>';
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+                html += '<div class="mt-3">';
+                html += '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); viewFullDetails(' + record.id + ')">';
+                html += '<i class="bi bi-eye"></i> 完整資料';
+                html += '</button>';
+                html += '<button class="btn btn-success btn-sm ms-2" onclick="event.stopPropagation(); quickAnalyze(\'' + record.sn + '\')">';
+                html += '<i class="bi bi-graph-up"></i> 分析';
+                html += '</button>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+        } else {
+            html += '<h6><i class="bi bi-graph-up"></i> 頻率測試數據：</h6>';
+            html += '<div class="frequency-grid">';
+            
+            mainFrequencies.forEach(freq => {
+                const value = firstRecord['freq_' + freq];
+                html += '<div class="frequency-item">';
+                html += '<span class="frequency-value">' + (value !== null && value !== undefined ? value : '-') + '</span>';
+                html += '<div class="frequency-label">' + freq + 'Hz</div>';
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            html += '<div class="mt-3">';
+            html += '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); viewFullDetails(' + firstRecord.id + ')">';
+            html += '<i class="bi bi-eye"></i> 完整資料';
+            html += '</button>';
+            html += '<button class="btn btn-success btn-sm ms-2" onclick="event.stopPropagation(); quickAnalyze(\'' + firstRecord.sn + '\')">';
+            html += '<i class="bi bi-graph-up"></i> 分析';
+            html += '</button>';
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+        
+        previousDate = currentDate;
+        globalIndex += group.records.length;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    console.log('===== 時間軸顯示完成 =====');
+    console.log('顯示項目數量:', Object.keys(groupedRecords).length);
+}
+
+function displayListView(records) {
+    const container = document.getElementById('listContent');
+    
+    const html = records.map(record => {
+        const validFrequencies = getValidFrequencies(record);
+        const stats = calculateStats(validFrequencies);
+        
+        return '<div class="card mb-3">' +
+            '<div class="card-body">' +
+            '<div class="row align-items-center">' +
+            '<div class="col-md-6">' +
+            '<h6 class="mb-1">' +
+            '<i class="bi bi-cpu"></i> <code>' + record.sn + '</code>' +
+            '<span class="badge bg-primary ms-2">' + record.test_type + '</span>' +
+            '</h6>' +
+            '<small class="text-muted">' +
+            '<i class="bi bi-calendar"></i> ' + formatDate(record.test_date) +
+            '<i class="bi bi-clock ms-2"></i> ' + formatTime(record.test_time) +
+            '</small>' +
+            '</div>' +
+            '<div class="col-md-4">' +
+            '<div class="row text-center">' +
+            '<div class="col-3">' +
+            '<div class="small text-muted">頻率數</div>' +
+            '<strong>' + validFrequencies.length + '</strong>' +
+            '</div>' +
+            '<div class="col-3">' +
+            '<div class="small text-muted">平均</div>' +
+            '<strong>' + (stats.avg || '-') + '</strong>' +
+            '</div>' +
+            '<div class="col-3">' +
+            '<div class="small text-muted">最小</div>' +
+            '<strong>' + (stats.min || '-') + '</strong>' +
+            '</div>' +
+            '<div class="col-3">' +
+            '<div class="small text-muted">最大</div>' +
+            '<strong>' + (stats.max || '-') + '</strong>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '<div class="col-md-2 text-end">' +
+            '<button class="btn btn-outline-info btn-sm" onclick="viewFullDetails(' + record.id + ')">' +
+            '<i class="bi bi-eye"></i> 詳情' +
+            '</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+    }).join('');
+    
+    container.innerHTML = html;
+}
+
+function toggleTimelineDetails(index, recordId, isMultipleTypes) {
+    isMultipleTypes = isMultipleTypes || false;
+    const detailsElement = document.getElementById('details-' + index);
+    const timelineItem = detailsElement.closest('.timeline-item');
+    
+    document.querySelectorAll('.timeline-details.show').forEach(el => {
+        if (el !== detailsElement) {
+            el.classList.remove('show');
+            el.closest('.timeline-item').classList.remove('active');
+        }
+    });
+    
+    if (detailsElement.classList.contains('show')) {
+        detailsElement.classList.remove('show');
+        timelineItem.classList.remove('active');
+    } else {
+        detailsElement.classList.add('show');
+        timelineItem.classList.add('active');
+        
+        setTimeout(() => {
+            timelineItem.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }, 150);
+    }
+}
+
+function toggleTypeDetails(typeId, recordId) {
+    const detailsElement = document.getElementById(typeId);
+    const toggleIcon = detailsElement.previousElementSibling.querySelector('.toggle-icon');
+    
+    document.querySelectorAll('.test-type-details').forEach(el => {
+        if (el !== detailsElement && el.style.display === 'block') {
+            el.style.display = 'none';
+            const icon = el.previousElementSibling.querySelector('.toggle-icon');
+            if (icon) {
+                icon.classList.remove('bi-chevron-up');
+                icon.classList.add('bi-chevron-down');
+            }
+        }
+    });
+    
+    if (detailsElement.style.display === 'none' || !detailsElement.style.display) {
+        detailsElement.style.display = 'block';
+        if (toggleIcon) {
+            toggleIcon.classList.remove('bi-chevron-down');
+            toggleIcon.classList.add('bi-chevron-up');
+        }
+    } else {
+        detailsElement.style.display = 'none';
+        if (toggleIcon) {
+            toggleIcon.classList.remove('bi-chevron-up');
+            toggleIcon.classList.add('bi-chevron-down');
+        }
+    }
+}
+
+function getValidFrequencies(record) {
+    return mainFrequencies.filter(freq => {
+        const value = record['freq_' + freq];
+        return value !== null && value !== undefined;
+    }).map(freq => parseFloat(record['freq_' + freq]));
+}
+
+function calculateStats(values) {
+    if (values.length === 0) return { avg: null, min: null, max: null };
+    
+    const avg = (values.reduce((sum, val) => sum + val, 0) / values.length).toFixed(2);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    
+    return { avg, min, max };
+}
+
+function parseDateKey(dateKey) {
+    if (!dateKey || dateKey.length !== 8) {
+        return { display: dateKey, label: dateKey };
+    }
+    
+    const year = dateKey.substring(0, 4);
+    const month = dateKey.substring(4, 6);
+    const day = dateKey.substring(6, 8);
+    
+    const date = new Date(year, month - 1, day);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const isToday = date.toDateString() === today.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+    
+    let label;
+    if (isToday) {
+        label = '今天';
+    } else if (isYesterday) {
+        label = '昨天';
+    } else {
+        const daysDiff = Math.floor((today - date) / (1000 * 60 * 60 * 24));
+        if (daysDiff < 7) {
+            label = daysDiff + ' 天前';
+        } else if (daysDiff < 30) {
+            const weeksDiff = Math.floor(daysDiff / 7);
+            label = weeksDiff + ' 週前';
+        } else if (daysDiff < 365) {
+            const monthsDiff = Math.floor(daysDiff / 30);
+            label = monthsDiff + ' 個月前';
+        } else {
+            const yearsDiff = Math.floor(daysDiff / 365);
+            label = yearsDiff + ' 年前';
+        }
+    }
+    
+    return {
+        display: year + '年' + month + '月' + day + '日',
+        label: label
+    };
+}
+
+function getTimeInfo(testDate, testTime) {
+    if (!testDate || !testTime) {
+        return { relative: '', timeAgo: '', nodeClass: '' };
+    }
+    
+    const year = testDate.substring(0, 4);
+    const month = testDate.substring(4, 6);
+    const day = testDate.substring(6, 8);
+    const hour = testTime.substring(0, 2);
+    const minute = testTime.substring(2, 4);
+    const second = testTime.substring(4, 6);
+    
+    const testDateTime = new Date(year, month - 1, day, hour, minute, second);
+    const now = new Date();
+    
+    const diffMs = now - testDateTime;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    let timeAgo;
+    let nodeClass = '';
+    
+    if (diffMinutes < 1) {
+        timeAgo = '剛剛';
+        nodeClass = 'recent';
+    } else if (diffMinutes < 60) {
+        timeAgo = diffMinutes + ' 分鐘前';
+        nodeClass = 'recent';
+    } else if (diffHours < 24) {
+        timeAgo = diffHours + ' 小時前';
+        if (diffHours < 2) nodeClass = 'recent';
+    } else if (diffDays < 7) {
+        timeAgo = diffDays + ' 天前';
+    } else if (diffDays < 30) {
+        const weeks = Math.floor(diffDays / 7);
+        timeAgo = weeks + ' 週前';
+    } else if (diffDays < 365) {
+        const months = Math.floor(diffDays / 30);
+        timeAgo = months + ' 個月前';
+    } else {
+        const years = Math.floor(diffDays / 365);
+        timeAgo = years + ' 年前';
+    }
+    
+    const today = new Date();
+    if (testDateTime.toDateString() === today.toDateString() && diffHours < 6) {
+        nodeClass = 'today';
+    }
+    
+    let relative;
+    if (diffDays === 0) {
+        relative = '今天';
+    } else if (diffDays === 1) {
+        relative = '昨天';
+    } else if (diffDays < 7) {
+        relative = diffDays + ' 天前';
+    } else {
+        relative = timeAgo;
+    }
+    
+    return { relative, timeAgo, nodeClass };
+}
+
+function updateSearchStats(data, pagination) {
+    const statsContainer = document.getElementById('searchStats');
+    
+    if (data.length === 0) {
+        statsContainer.innerHTML = '<div class="text-muted small">暫無搜尋結果</div>';
+        return;
+    }
+    
+    const typeStats = {};
+    const snStats = {};
+    
+    data.forEach(record => {
+        typeStats[record.test_type] = (typeStats[record.test_type] || 0) + 1;
+        snStats[record.sn] = (snStats[record.sn] || 0) + 1;
+    });
+    
+    const uniqueSns = Object.keys(snStats).length;
+    const totalRecords = pagination.total;
+    
+    const html = '<div class="mb-2">' +
+        '<strong>搜尋結果：</strong> ' + totalRecords + ' 筆記錄' +
+        '</div>' +
+        '<div class="mb-2">' +
+        '<strong>設備數量：</strong> ' + uniqueSns + ' 個 SN' +
+        '</div>' +
+        '<div class="mb-2">' +
+        '<strong>測試類型：</strong>' +
+        Object.entries(typeStats).map(([type, count]) => 
+            '<span class="badge bg-secondary me-1">' + type + '(' + count + ')</span>'
+        ).join('') +
+        '</div>' +
+        '<div class="small text-muted">' +
+        '第 ' + pagination.page + ' / ' + pagination.pages + ' 頁' +
+        '</div>';
+    
+    statsContainer.innerHTML = html;
+}
+
+function displayPagination(paginationInfo, containerId) {
+    const page = paginationInfo.page;
+    const pages = paginationInfo.pages;
+    const pagination = document.getElementById(containerId);
+    
+    if (pages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    if (page > 1) {
+        html += '<li class="page-item">' +
+            '<a class="page-link" href="#" onclick="performSearch(' + (page - 1) + '); return false;">' +
+            '<i class="bi bi-chevron-left"></i>' +
+            '</a>' +
+            '</li>';
+    }
+    
+    const startPage = Math.max(1, page - 2);
+    const endPage = Math.min(pages, page + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += '<li class="page-item ' + (i === page ? 'active' : '') + '">' +
+            '<a class="page-link" href="#" onclick="performSearch(' + i + '); return false;">' + i + '</a>' +
+            '</li>';
+    }
+    
+    if (page < pages) {
+        html += '<li class="page-item">' +
+            '<a class="page-link" href="#" onclick="performSearch(' + (page + 1) + '); return false;">' +
+            '<i class="bi bi-chevron-right"></i>' +
+            '</a>' +
+            '</li>';
+    }
+    
+    pagination.innerHTML = html;
+}
+
+function viewFullDetails(recordId) {
+    currentRecordId = recordId;
+    
+    const record = allRecords.find(r => r.id === recordId);
+    
+    if (!record) {
+        showNotification('找不到記錄詳情', 'error');
+        return;
+    }
+    
+    const modalBody = document.getElementById('recordModalBody');
+    
+    const allFreqData = allFrequencies.map(freq => ({
+        freq: freq,
+        value: record['freq_' + freq],
+        hasValue: record['freq_' + freq] !== null && record['freq_' + freq] !== undefined
+    }));
+    
+    const validValues = allFreqData.filter(item => item.hasValue).map(item => parseFloat(item.value));
+    const stats = calculateStats(validValues);
+    
+    modalBody.innerHTML = '<div class="row mb-4">' +
+        '<div class="col-md-6">' +
+        '<h6><i class="bi bi-info-circle"></i> 基本資訊</h6>' +
+        '<table class="table table-sm">' +
+        '<tr><td><strong>設備序號：</strong></td><td><code>' + record.sn + '</code></td></tr>' +
+        '<tr><td><strong>測試日期：</strong></td><td>' + formatDate(record.test_date) + '</td></tr>' +
+        '<tr><td><strong>測試時間：</strong></td><td>' + formatTime(record.test_time) + '</td></tr>' +
+        '<tr><td><strong>測試類型：</strong></td><td><span class="badge bg-primary">' + record.test_type + '</span></td></tr>' +
+        '<tr><td><strong>檔案來源：</strong></td><td>' + (record.filename || '未知') + '</td></tr>' +
+        '</table>' +
+        '</div>' +
+        '<div class="col-md-6">' +
+        '<h6><i class="bi bi-bar-chart"></i> 統計資訊</h6>' +
+        '<table class="table table-sm">' +
+        '<tr><td><strong>有效數據：</strong></td><td>' + validValues.length + ' / ' + allFrequencies.length + '</td></tr>' +
+        '<tr><td><strong>平均值：</strong></td><td>' + (stats.avg || '-') + '</td></tr>' +
+        '<tr><td><strong>最小值：</strong></td><td>' + (stats.min || '-') + '</td></tr>' +
+        '<tr><td><strong>最大值：</strong></td><td>' + (stats.max || '-') + '</td></tr>' +
+        '<tr><td><strong>數值範圍：</strong></td><td>' + (validValues.length > 0 ? (stats.max - stats.min).toFixed(2) : '-') + '</td></tr>' +
+        '</table>' +
+        '</div>' +
+        '</div>' +
+        
+        '<div class="mb-4">' +
+        '<h6><i class="bi bi-graph-up"></i> 完整頻率測試數據</h6>' +
+        '<div class="table-responsive">' +
+        '<table class="table table-bordered table-hover">' +
+        '<thead class="table-light">' +
+        '<tr>' +
+        allFrequencies.map(freq => '<th class="text-center">' + freq + 'Hz</th>').join('') +
+        '</tr>' +
+        '</thead>' +
+        '<tbody>' +
+        '<tr>' +
+        allFreqData.map(item => {
+            if (item.hasValue) {
+                return '<td class="text-center"><strong>' + item.value + '</strong></td>';
+            } else {
+                return '<td class="text-center text-muted">-</td>';
+            }
+        }).join('') +
+        '</tr>' +
+        '</tbody>' +
+        '</table>' +
+        '</div>' +
+        '</div>' +
+        
+        '<div class="mb-3">' +
+        '<h6><i class="bi bi-grid"></i> 頻率數據視覺化</h6>' +
+        '<div class="row">' +
+        allFreqData.map(item => 
+            '<div class="col-md-2 col-sm-3 col-4 mb-3">' +
+            '<div class="card ' + (item.hasValue ? 'border-primary' : 'border-light') + '">' +
+            '<div class="card-body text-center p-2">' +
+            '<div class="h6 mb-1 ' + (item.hasValue ? 'text-primary' : 'text-muted') + '">' +
+            (item.hasValue ? item.value : '-') +
+            '</div>' +
+            '<small class="text-muted">' + item.freq + 'Hz</small>' +
+            '</div>' +
+            '</div>' +
+            '</div>'
+        ).join('') +
+        '</div>' +
+        '</div>';
+    
+    document.getElementById('recordModalLabel').innerHTML = 
+        '<i class="bi bi-info-circle"></i> 測試記錄詳情 - ' + record.sn;
+    
+    const modal = new bootstrap.Modal(document.getElementById('recordModal'));
+    modal.show();
+}
+
+function quickAnalyze(sn) {
+    window.location.href = '/analysis?sn=' + sn;
+}
+
+function analyzeCurrentRecord() {
+    if (currentRecordId) {
+        const record = allRecords.find(r => r.id === currentRecordId);
+        if (record) {
+            quickAnalyze(record.sn);
+        }
+    }
+}
+
+function exportData() {
+    if (allRecords.length === 0) {
+        showNotification('沒有可匯出的資料', 'warning');
+        return;
+    }
+    
+    const headers = ['SN', '測試日期', '測試時間', '測試類型'].concat(allFrequencies.map(f => f + 'Hz'));
+    const rows = allRecords.map(record => [
+        record.sn,
+        formatDate(record.test_date),
+        formatTime(record.test_time),
+        record.test_type
+    ].concat(allFrequencies.map(freq => record['freq_' + freq] || '')));
+    
+    const csvContent = [headers].concat(rows)
+        .map(row => row.map(cell => '"' + cell + '"').join(','))
+        .join('\n');
+    
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', '測試記錄_' + new Date().toISOString().slice(0, 10) + '.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification('資料匯出成功', 'success');
+}
+
+function formatDate(dateString) {
+    if (!dateString || dateString.length !== 8) return dateString;
+    return dateString.slice(0,4) + '-' + dateString.slice(4,6) + '-' + dateString.slice(6,8);
+}
+
+function formatTime(timeString) {
+    if (!timeString || timeString.length !== 6) return timeString;
+    return timeString.slice(0,2) + ':' + timeString.slice(2,4) + ':' + timeString.slice(4,6);
+}
+
+function showNotification(message, type) {
+    type = type || 'info';
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+    alertDiv.innerHTML = '<i class="bi bi-' + (type === 'success' ? 'check-circle' : 'info-circle') + '"></i> ' +
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.get('sn')) {
+        document.getElementById('sn').value = urlParams.get('sn');
+    }
+    if (urlParams.get('test_type')) {
+        document.getElementById('testType').value = urlParams.get('test_type');
+    }
+    
+    if (urlParams.get('sn') || urlParams.get('test_type')) {
+        performSearch(1);
+    }
+});
+</script>
+{% endblock %}
+                

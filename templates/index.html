@@ -122,7 +122,7 @@
     </div>
 </div>
 
-<!-- 最近活動與統計 -->
+<!-- 系統狀態與管理 -->
 <div class="row mb-5">
     {% if stats.test_type_stats %}
     <div class="col-md-6">
@@ -174,14 +174,14 @@
     
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header bg-info text-white">
                 <h5 class="mb-0">
-                    <i class="bi bi-clock-history"></i> 系統狀態
+                    <i class="bi bi-gear"></i> 系統狀態
                 </h5>
             </div>
             <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 mb-3">
+                <div class="row text-center mb-3">
+                    <div class="col-6">
                         <div class="border rounded p-3">
                             <i class="bi bi-check-circle text-success display-6"></i>
                             <div class="mt-2">
@@ -190,7 +190,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-6 mb-3">
+                    <div class="col-6">
                         <div class="border rounded p-3">
                             <i class="bi bi-database text-info display-6"></i>
                             <div class="mt-2">
@@ -201,11 +201,28 @@
                     </div>
                 </div>
                 
+                <!-- 治具統計 -->
+                {% if stats.fixture_stats %}
+                <div class="mb-3">
+                    <h6>治具分布：</h6>
+                    <div class="d-flex gap-2">
+                        {% for fixture, count in stats.fixture_stats.items() %}
+                        <span class="badge bg-{{ 'primary' if fixture == '治具1' else 'success' }}">
+                            <i class="bi bi-tools"></i> {{ fixture }} ({{ count }})
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
                 <div class="mt-3">
-                    <h6>快速操作：</h6>
+                    <h6>管理操作：</h6>
                     <div class="d-grid gap-2">
                         <button class="btn btn-outline-primary btn-sm" onclick="refreshStats()">
                             <i class="bi bi-arrow-clockwise"></i> 刷新統計
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="resetDatabase()">
+                            <i class="bi bi-trash"></i> 重置資料庫
                         </button>
                         <button class="btn btn-outline-secondary btn-sm" onclick="exportReport()">
                             <i class="bi bi-download"></i> 導出報告
@@ -301,7 +318,7 @@
                             <i class="bi bi-2-circle-fill display-4 text-info mb-2"></i>
                             <h6>上傳並匯入</h6>
                             <p class="small text-muted">
-                                點擊「數據匯入」，選擇或拖放 CSV 檔案進行匯入
+                                點擊「數據匯入」，選擇治具類型並上傳 CSV 檔案
                             </p>
                         </div>
                     </div>
@@ -325,6 +342,46 @@
     </div>
 </div>
 {% endif %}
+
+<!-- 重置資料庫確認模態框 -->
+<div class="modal fade" id="resetDbModal" tabindex="-1" aria-labelledby="resetDbModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="resetDbModalLabel">
+                    <i class="bi bi-exclamation-triangle"></i> 重置資料庫
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>警告：</strong>此操作將會刪除所有現有資料！
+                </div>
+                <p>重置資料庫將會：</p>
+                <ul>
+                    <li>刪除所有測試記錄</li>
+                    <li>清除匯入歷史</li>
+                    <li>重新建立空的資料表</li>
+                </ul>
+                <p class="text-danger"><strong>此操作無法復原，請謹慎操作！</strong></p>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="confirmReset">
+                    <label class="form-check-label" for="confirmReset">
+                        我了解此操作的風險並確認要重置資料庫
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="executeReset()" id="executeResetBtn" disabled>
+                    <i class="bi bi-trash"></i> 確認重置
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -335,6 +392,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 頁面載入時的動畫效果
     animateCounters();
+    
+    // 確認框勾選處理
+    const confirmCheckbox = document.getElementById('confirmReset');
+    const executeBtn = document.getElementById('executeResetBtn');
+    
+    if (confirmCheckbox && executeBtn) {
+        confirmCheckbox.addEventListener('change', function() {
+            executeBtn.disabled = !this.checked;
+        });
+    }
 });
 
 function animateCounters() {
@@ -371,10 +438,15 @@ async function refreshStats() {
 
 function updateStatistics(stats) {
     // 更新統計數字
-    document.getElementById('totalSns').textContent = stats.total_sns || 0;
-    document.getElementById('totalRecords').textContent = stats.total_records || 0;
-    document.getElementById('latestDate').textContent = formatDate(stats.latest_date) || '-';
-    document.getElementById('testTypes').textContent = Object.keys(stats.test_type_stats || {}).length;
+    const totalSns = document.getElementById('totalSns');
+    const totalRecords = document.getElementById('totalRecords');
+    const latestDate = document.getElementById('latestDate');
+    const testTypes = document.getElementById('testTypes');
+    
+    if (totalSns) totalSns.textContent = stats.total_sns || 0;
+    if (totalRecords) totalRecords.textContent = stats.total_records || 0;
+    if (latestDate) latestDate.textContent = formatDate(stats.latest_date) || '-';
+    if (testTypes) testTypes.textContent = Object.keys(stats.test_type_stats || {}).length;
     
     // 重新執行動畫
     animateCounters();
@@ -397,6 +469,54 @@ function analyzeSnData(sn) {
 
 function exportReport() {
     utils.showNotification('報告導出功能開發中...', 'info');
+}
+
+// 重置資料庫功能
+function resetDatabase() {
+    const modal = new bootstrap.Modal(document.getElementById('resetDbModal'));
+    modal.show();
+}
+
+// 執行重置
+async function executeReset() {
+    const resetBtn = document.getElementById('executeResetBtn');
+    const originalText = resetBtn.innerHTML;
+    
+    try {
+        // 顯示載入狀態
+        resetBtn.disabled = true;
+        resetBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>重置中...';
+        
+        const response = await fetch('/dev/reset-db', {
+            method: 'GET'
+        });
+        
+        if (response.ok) {
+            // 關閉模態框
+            bootstrap.Modal.getInstance(document.getElementById('resetDbModal')).hide();
+            
+            // 顯示成功訊息
+            utils.showNotification('資料庫重置成功！頁面將自動重新載入。', 'success');
+            
+            // 2秒後重新載入頁面
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            utils.showNotification('資料庫重置失敗，請檢查系統設定。', 'error');
+        }
+    } catch (error) {
+        console.error('重置資料庫錯誤:', error);
+        utils.showNotification('重置失敗：' + error.message, 'error');
+    } finally {
+        // 恢復按鈕狀態
+        resetBtn.disabled = false;
+        resetBtn.innerHTML = originalText;
+        const confirmCheckbox = document.getElementById('confirmReset');
+        if (confirmCheckbox) {
+            confirmCheckbox.checked = false;
+        }
+    }
 }
 
 // 本地格式化函數

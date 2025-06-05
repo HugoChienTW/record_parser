@@ -37,6 +37,21 @@
                         </select>
                     </div>
                     
+                    <!-- 新增治具選擇 -->
+                    <div class="mb-3">
+                        <label for="fixture" class="form-label">
+                            <i class="bi bi-tools"></i> 測試治具
+                        </label>
+                        <select class="form-select" id="fixture">
+                            <option value="">全部治具</option>
+                            <option value="治具1">治具1</option>
+                            <option value="治具2">治具2</option>
+                        </select>
+                        <div class="form-text">
+                            <small>可按治具類型篩選測試記錄</small>
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
                         <label for="testDate" class="form-label">測試日期</label>
                         <input type="date" class="form-control" id="testDate">
@@ -186,23 +201,6 @@
     max-height: 70vh;
     overflow-y: auto;
     padding: 20px 0;
-}
-
-/* 改善日期輸入框的顯示 */
-input[type="date"] {
-    width: 100%;
-    padding: 8px 12px;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-    cursor: pointer;
-    padding: 2px;
-}
-
-/* 日期範圍標籤樣式 */
-.form-label.small {
-    margin-bottom: 4px;
-    font-weight: 500;
 }
 
 .timeline {
@@ -361,8 +359,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .timeline-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content-between;
+    align-items-center;
     margin-bottom: 15px;
 }
 
@@ -466,6 +464,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     margin-top: 2px;
 }
 
+/* 治具標識樣式 */
+.fixture-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.fixture-badge.fixture1 {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.fixture-badge.fixture2 {
+    background: #e8f5e8;
+    color: #388e3c;
+}
+
 /* 展開動畫 */
 .timeline-details.show {
     display: block;
@@ -549,6 +567,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 設定預設視圖模式
     setViewMode('timeline');
+    
+    // 檢查 URL 參數
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.get('sn')) {
+        document.getElementById('sn').value = urlParams.get('sn');
+    }
+    if (urlParams.get('test_type')) {
+        document.getElementById('testType').value = urlParams.get('test_type');
+    }
+    if (urlParams.get('fixture')) {
+        document.getElementById('fixture').value = urlParams.get('fixture');
+    }
+    
+    if (urlParams.get('sn') || urlParams.get('test_type') || urlParams.get('fixture')) {
+        performSearch(1);
+    }
 });
 
 function performSearch(page = 1) {
@@ -562,6 +597,9 @@ function performSearch(page = 1) {
     
     const testType = document.getElementById('testType').value;
     if (testType) params.append('test_type', testType);
+    
+    const fixture = document.getElementById('fixture').value;
+    if (fixture) params.append('fixture', fixture);
     
     const testDate = document.getElementById('testDate').value;
     if (testDate) {
@@ -789,12 +827,9 @@ function groupRecordsBySnDateTime(records) {
     const groups = {};
     
     console.log('準備分組的記錄:', records.length);
-    console.log('記錄詳情:', records);
     
     records.forEach((record, index) => {
         const groupKey = record.sn + '_' + record.test_date + '_' + record.test_time;
-        
-        console.log('記錄 ' + index + ': SN=' + record.sn + ', Date=' + record.test_date + ', Time=' + record.test_time + ', Type=' + record.test_type + ', Key=' + groupKey);
         
         if (!groups[groupKey]) {
             groups[groupKey] = {
@@ -816,15 +851,6 @@ function groupRecordsBySnDateTime(records) {
         .forEach(key => {
             sortedGroups[key] = groups[key];
         });
-    
-    console.log('分組統計:');
-    Object.keys(sortedGroups).forEach(key => {
-        const group = sortedGroups[key];
-        const testTypes = group.records.map(r => r.test_type);
-        console.log(key + ': ' + group.records.length + ' 個記錄, 測試類型: ' + testTypes.join(', '));
-    });
-    
-    console.log('分組結果詳情:', sortedGroups);
     
     return sortedGroups;
 }
@@ -869,6 +895,10 @@ function displayTimelineView(records) {
         const testTypes = group.records.map(r => r.test_type);
         const isMultipleTypes = testTypes.length > 1;
         
+        // 取得治具資訊
+        const fixtures = [...new Set(group.records.map(r => r.fixture))].filter(f => f);
+        const fixtureDisplay = fixtures.length > 0 ? fixtures.join(', ') : '未指定';
+        
         html += '<div class="timeline-item ' + (isMultipleTypes ? 'timeline-group' : '') + '" onclick="toggleTimelineDetails(' + index + ', ' + firstRecord.id + ', ' + isMultipleTypes + ')">';
         
         if (showTimeScale) {
@@ -888,6 +918,17 @@ function displayTimelineView(records) {
         html += '<div>';
         html += '<div class="timeline-sn">';
         html += '<i class="bi bi-cpu"></i> ' + firstRecord.sn;
+        
+        // 顯示治具資訊
+        if (fixtures.length > 0) {
+            fixtures.forEach(fixture => {
+                const fixtureClass = fixture === '治具1' ? 'fixture1' : 'fixture2';
+                html += '<span class="fixture-badge ' + fixtureClass + '">';
+                html += '<i class="bi bi-tools"></i> ' + fixture;
+                html += '</span>';
+            });
+        }
+        
         html += '</div>';
         html += '<div class="timeline-time">';
         html += '<i class="bi bi-clock"></i> ' + formatTime(firstRecord.test_time);
@@ -917,6 +958,12 @@ function displayTimelineView(records) {
                 html += '<div class="d-flex justify-content-between align-items-center">';
                 html += '<div>';
                 html += '<span class="timeline-type ' + record.test_type + '">' + record.test_type + '</span>';
+                if (record.fixture) {
+                    const fixtureClass = record.fixture === '治具1' ? 'fixture1' : 'fixture2';
+                    html += '<span class="fixture-badge ' + fixtureClass + ' ms-2">';
+                    html += '<i class="bi bi-tools"></i> ' + record.fixture;
+                    html += '</span>';
+                }
                 html += '<span class="ms-2 text-muted small">測試類型</span>';
                 html += '</div>';
                 html += '<i class="bi bi-chevron-down toggle-icon"></i>';
@@ -992,6 +1039,11 @@ function displayListView(records) {
         const validFrequencies = getValidFrequencies(record);
         const stats = calculateStats(validFrequencies);
         
+        // 治具顯示
+        const fixtureClass = record.fixture === '治具1' ? 'fixture1' : 'fixture2';
+        const fixtureDisplay = record.fixture ? 
+            `<span class="fixture-badge ${fixtureClass}"><i class="bi bi-tools"></i> ${record.fixture}</span>` : '';
+        
         return '<div class="card mb-3">' +
             '<div class="card-body">' +
             '<div class="row align-items-center">' +
@@ -999,6 +1051,7 @@ function displayListView(records) {
             '<h6 class="mb-1">' +
             '<i class="bi bi-cpu"></i> <code>' + record.sn + '</code>' +
             '<span class="badge bg-primary ms-2">' + record.test_type + '</span>' +
+            fixtureDisplay +
             '</h6>' +
             '<small class="text-muted">' +
             '<i class="bi bi-calendar"></i> ' + formatDate(record.test_date) +
@@ -1231,10 +1284,14 @@ function updateSearchStats(data, pagination) {
     
     const typeStats = {};
     const snStats = {};
+    const fixtureStats = {};  // 新增治具統計
     
     data.forEach(record => {
         typeStats[record.test_type] = (typeStats[record.test_type] || 0) + 1;
         snStats[record.sn] = (snStats[record.sn] || 0) + 1;
+        if (record.fixture) {
+            fixtureStats[record.fixture] = (fixtureStats[record.fixture] || 0) + 1;
+        }
     });
     
     const uniqueSns = Object.keys(snStats).length;
@@ -1251,6 +1308,13 @@ function updateSearchStats(data, pagination) {
         Object.entries(typeStats).map(([type, count]) => 
             '<span class="badge bg-secondary me-1">' + type + '(' + count + ')</span>'
         ).join('') +
+        '</div>' +
+        '<div class="mb-2">' +
+        '<strong>治具分布：</strong>' +
+        Object.entries(fixtureStats).map(([fixture, count]) => {
+            const fixtureClass = fixture === '治具1' ? 'primary' : 'success';
+            return '<span class="badge bg-' + fixtureClass + ' me-1">' + fixture + '(' + count + ')</span>';
+        }).join('') +
         '</div>' +
         '<div class="small text-muted">' +
         '第 ' + pagination.page + ' / ' + pagination.pages + ' 頁' +
@@ -1320,6 +1384,12 @@ function viewFullDetails(recordId) {
     const validValues = allFreqData.filter(item => item.hasValue).map(item => parseFloat(item.value));
     const stats = calculateStats(validValues);
     
+    // 治具資訊顯示
+    const fixtureClass = record.fixture === '治具1' ? 'primary' : 'success';
+    const fixtureDisplay = record.fixture ? 
+        `<span class="badge bg-${fixtureClass}"><i class="bi bi-tools"></i> ${record.fixture}</span>` : 
+        '<span class="text-muted">未指定</span>';
+    
     modalBody.innerHTML = '<div class="row mb-4">' +
         '<div class="col-md-6">' +
         '<h6><i class="bi bi-info-circle"></i> 基本資訊</h6>' +
@@ -1328,6 +1398,7 @@ function viewFullDetails(recordId) {
         '<tr><td><strong>測試日期：</strong></td><td>' + formatDate(record.test_date) + '</td></tr>' +
         '<tr><td><strong>測試時間：</strong></td><td>' + formatTime(record.test_time) + '</td></tr>' +
         '<tr><td><strong>測試類型：</strong></td><td><span class="badge bg-primary">' + record.test_type + '</span></td></tr>' +
+        '<tr><td><strong>測試治具：</strong></td><td>' + fixtureDisplay + '</td></tr>' +
         '<tr><td><strong>檔案來源：</strong></td><td>' + (record.filename || '未知') + '</td></tr>' +
         '</table>' +
         '</div>' +
@@ -1411,12 +1482,13 @@ function exportData() {
         return;
     }
     
-    const headers = ['SN', '測試日期', '測試時間', '測試類型'].concat(allFrequencies.map(f => f + 'Hz'));
+    const headers = ['SN', '測試日期', '測試時間', '測試類型', '治具'].concat(allFrequencies.map(f => f + 'Hz'));
     const rows = allRecords.map(record => [
         record.sn,
         formatDate(record.test_date),
         formatTime(record.test_time),
-        record.test_type
+        record.test_type,
+        record.fixture || '未指定'
     ].concat(allFrequencies.map(freq => record['freq_' + freq] || '')));
     
     const csvContent = [headers].concat(rows)
@@ -1462,21 +1534,5 @@ function showNotification(message, type) {
         }
     }, 5000);
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    if (urlParams.get('sn')) {
-        document.getElementById('sn').value = urlParams.get('sn');
-    }
-    if (urlParams.get('test_type')) {
-        document.getElementById('testType').value = urlParams.get('test_type');
-    }
-    
-    if (urlParams.get('sn') || urlParams.get('test_type')) {
-        performSearch(1);
-    }
-});
 </script>
 {% endblock %}
-                

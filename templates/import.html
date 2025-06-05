@@ -23,35 +23,14 @@
                 <form id="uploadForm" enctype="multipart/form-data">
                     <!-- 治具選擇 -->
                     <div class="mb-4">
-                        <label class="form-label">
+                        <label for="fixture" class="form-label">
                             <i class="bi bi-tools"></i> 測試治具選擇 <span class="text-danger">*</span>
                         </label>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="fixture" id="fixture1" value="治具1" checked>
-                                    <label class="form-check-label d-flex align-items-center" for="fixture1">
-                                        <i class="bi bi-gear text-primary me-2"></i>
-                                        <div>
-                                            <strong>治具1</strong>
-                                            <div class="small text-muted">第一套測試治具設備</div>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="fixture" id="fixture2" value="治具2">
-                                    <label class="form-check-label d-flex align-items-center" for="fixture2">
-                                        <i class="bi bi-gear text-success me-2"></i>
-                                        <div>
-                                            <strong>治具2</strong>
-                                            <div class="small text-muted">第二套測試治具設備</div>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+                        <select class="form-select" id="fixture" name="fixture" required>
+                            <option value=""></option>
+                            <option value="治具1">治具1</option>
+                            <option value="治具2">治具2</option>
+                        </select>
                         <div class="form-text">
                             <i class="bi bi-info-circle"></i> 請選擇此批測試數據對應的治具設備
                         </div>
@@ -217,12 +196,18 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     
     const formData = new FormData(this);
     const file = document.getElementById('file').files[0];
-    const fixture = document.querySelector('input[name="fixture"]:checked').value;
+    const fixture = document.getElementById('fixture').value;
     const encoding = document.getElementById('encoding').value;
     
     // 驗證檔案
     if (!file) {
         showNotification('請選擇要上傳的檔案', 'warning');
+        return;
+    }
+    
+    // 驗證治具選擇
+    if (!fixture || fixture === '') {
+        showNotification('請選擇測試治具（治具1 或 治具2）', 'warning');
         return;
     }
     
@@ -244,7 +229,6 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
         if (result.success) {
             showUploadResult(result, 'success');
             document.getElementById('uploadForm').reset();
-            document.getElementById('fixture1').checked = true; // 重置為治具1
             loadRecentImports(); // 重新載入匯入記錄
         } else {
             showUploadResult(result, 'error');
@@ -439,7 +423,6 @@ function displayRecentImports(imports) {
 // 清除表單
 function clearForm() {
     document.getElementById('uploadForm').reset();
-    document.getElementById('fixture1').checked = true;
     document.getElementById('result').style.display = 'none';
     document.getElementById('progressContainer').style.display = 'none';
 }
@@ -498,9 +481,14 @@ function formatDateTime(isoString) {
 }
 
 // 治具選擇變化處理
-document.querySelectorAll('input[name="fixture"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        // 可以在這裡添加治具切換時的額外邏輯
-        console.log('選擇治具:', this.value);
-    });
+document.getElementById('fixture').addEventListener('change', function() {
+    // 可以在這裡添加治具切換時的額外邏輯
+    console.log('選擇治具:', this.value);
+    
+    // 如果選擇了治具，移除可能的錯誤樣式
+    if (this.value) {
+        this.classList.remove('is-invalid');
+    }
 });
+</script>
+{% endblock %}

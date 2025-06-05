@@ -76,7 +76,7 @@ def main():
     # 獲取配置
     config_class = get_config()
     host = os.environ.get('HOST', '127.0.0.1')
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5500))
     
     print("=" * 60)
     print(f"🚀 {config_class.APP_NAME}")

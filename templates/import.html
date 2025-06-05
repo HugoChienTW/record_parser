@@ -15,45 +15,181 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">上傳 CSV 檔案</h5>
+                <h5 class="mb-0">
+                    <i class="bi bi-file-arrow-up"></i> 上傳 CSV 檔案
+                </h5>
             </div>
             <div class="card-body">
                 <form id="uploadForm" enctype="multipart/form-data">
+                    <!-- 治具選擇 -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="bi bi-tools"></i> 測試治具選擇 <span class="text-danger">*</span>
+                        </label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="fixture" id="fixture1" value="治具1" checked>
+                                    <label class="form-check-label d-flex align-items-center" for="fixture1">
+                                        <i class="bi bi-gear text-primary me-2"></i>
+                                        <div>
+                                            <strong>治具1</strong>
+                                            <div class="small text-muted">第一套測試治具設備</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="fixture" id="fixture2" value="治具2">
+                                    <label class="form-check-label d-flex align-items-center" for="fixture2">
+                                        <i class="bi bi-gear text-success me-2"></i>
+                                        <div>
+                                            <strong>治具2</strong>
+                                            <div class="small text-muted">第二套測試治具設備</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> 請選擇此批測試數據對應的治具設備
+                        </div>
+                    </div>
+
+                    <!-- 檔案上傳 -->
                     <div class="mb-3">
-                        <label for="file" class="form-label">選擇檔案</label>
+                        <label for="file" class="form-label">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> 選擇檔案 <span class="text-danger">*</span>
+                        </label>
                         <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+                        <div class="form-text">僅支援 CSV 格式檔案，檔案大小限制 16MB</div>
                     </div>
                     
+                    <!-- 檔案編碼 -->
                     <div class="mb-3">
-                        <label for="encoding" class="form-label">檔案編碼</label>
+                        <label for="encoding" class="form-label">
+                            <i class="bi bi-code"></i> 檔案編碼
+                        </label>
                         <select class="form-select" id="encoding" name="encoding">
-                            <option value="utf-8">UTF-8</option>
-                            <option value="big5">Big5</option>
-                            <option value="gb2312">GB2312</option>
+                            <option value="utf-8">UTF-8 (推薦)</option>
+                            <option value="big5">Big5 (繁體中文)</option>
+                            <option value="gb2312">GB2312 (簡體中文)</option>
+                            <option value="shift_jis">Shift_JIS (日文)</option>
                         </select>
+                        <div class="form-text">如果檔案包含中文且顯示亂碼，請嘗試其他編碼</div>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-upload"></i> 開始匯入
-                    </button>
+                    <!-- 上傳按鈕 -->
+                    <div class="d-grid gap-2 d-md-block">
+                        <button type="submit" class="btn btn-primary" id="uploadBtn">
+                            <i class="bi bi-upload"></i> 開始匯入
+                            <span class="spinner-border spinner-border-sm ms-2 d-none" id="uploadSpinner" role="status">
+                                <span class="visually-hidden">上傳中...</span>
+                            </span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearForm()">
+                            <i class="bi bi-x-circle"></i> 清除
+                        </button>
+                    </div>
                 </form>
                 
+                <!-- 上傳結果 -->
                 <div id="result" class="mt-4" style="display: none;"></div>
+                
+                <!-- 進度條 -->
+                <div id="progressContainer" class="mt-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted">上傳進度</span>
+                        <span class="small text-muted" id="progressText">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="progressBar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
     <div class="col-md-4">
-        <div class="card">
+        <!-- 格式說明 -->
+        <div class="card mb-3">
             <div class="card-header">
-                <h6 class="mb-0">檔案格式說明</h6>
+                <h6 class="mb-0">
+                    <i class="bi bi-info-circle"></i> 檔案格式說明
+                </h6>
             </div>
             <div class="card-body">
                 <h6>檔案名稱格式：</h6>
-                <code>SN_YYYYMMDD_HHMMSS_(left/right/rec1/rec2)</code>
+                <div class="bg-light p-2 rounded mb-3">
+                    <code>SN_YYYYMMDD_HHMMSS_(left/right/rec1/rec2)</code>
+                </div>
                 
                 <h6 class="mt-3">範例：</h6>
-                <small>32120121ED0755130005_20250522_084534_left.csv</small>
+                <div class="bg-light p-2 rounded mb-3">
+                    <small><code>32120121ED0755130005_20250522_084534_left.csv</code></small>
+                </div>
+                
+                <h6 class="mt-3">格式說明：</h6>
+                <ul class="small">
+                    <li><strong>SN</strong>：設備序號（字母+數字）</li>
+                    <li><strong>YYYYMMDD</strong>：測試日期</li>
+                    <li><strong>HHMMSS</strong>：測試時間</li>
+                    <li><strong>測試類型</strong>：left/right/rec1/rec2</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 治具說明 -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-tools"></i> 治具選擇說明
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-gear text-primary me-2"></i>
+                        <strong>治具1</strong>
+                    </div>
+                    <p class="small text-muted mb-0">
+                        第一套測試治具設備產生的數據。通常用於主要測試流程。
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-gear text-success me-2"></i>
+                        <strong>治具2</strong>
+                    </div>
+                    <p class="small text-muted mb-0">
+                        第二套測試治具設備產生的數據。通常用於驗證或備用測試。
+                    </p>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-lightbulb"></i>
+                    <strong>提示：</strong>選擇正確的治具類型有助於後續的數據分析和比較。
+                </div>
+            </div>
+        </div>
+
+        <!-- 匯入歷史 -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-clock-history"></i> 最近匯入記錄
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="recentImports">
+                    <div class="text-center text-muted">
+                        <i class="bi bi-inbox"></i><br>
+                        暫無匯入記錄
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -62,16 +198,42 @@
 
 {% block scripts %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 載入最近匯入記錄
+    loadRecentImports();
+    
+    // 檔案選擇變化時的處理
+    document.getElementById('file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            validateFile(file);
+        }
+    });
+});
+
+// 表單提交處理
 document.getElementById('uploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const formData = new FormData(this);
-    const resultDiv = document.getElementById('result');
+    const file = document.getElementById('file').files[0];
+    const fixture = document.querySelector('input[name="fixture"]:checked').value;
+    const encoding = document.getElementById('encoding').value;
+    
+    // 驗證檔案
+    if (!file) {
+        showNotification('請選擇要上傳的檔案', 'warning');
+        return;
+    }
+    
+    if (!validateFile(file)) {
+        return;
+    }
+    
+    // 顯示上傳狀態
+    showUploadProgress();
     
     try {
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div class="alert alert-info">上傳中...</div>';
-        
         const response = await fetch('/api/upload', {
             method: 'POST',
             body: formData
@@ -80,22 +242,265 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
         const result = await response.json();
         
         if (result.success) {
-            resultDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> ${result.message}
-                </div>`;
+            showUploadResult(result, 'success');
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fixture1').checked = true; // 重置為治具1
+            loadRecentImports(); // 重新載入匯入記錄
         } else {
-            resultDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> ${result.message}
-                </div>`;
+            showUploadResult(result, 'error');
         }
     } catch (error) {
-        resultDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> 上傳失敗：${error.message}
-            </div>`;
+        showUploadResult({
+            message: '上傳失敗：' + error.message,
+            errors: []
+        }, 'error');
+    } finally {
+        hideUploadProgress();
     }
 });
-</script>
-{% endblock %}
+
+// 檔案驗證
+function validateFile(file) {
+    // 檢查檔案大小 (16MB)
+    const maxSize = 16 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showNotification('檔案大小超過 16MB 限制', 'error');
+        return false;
+    }
+    
+    // 檢查檔案類型
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        showNotification('請選擇 CSV 格式檔案', 'error');
+        return false;
+    }
+    
+    // 簡單檢查檔案名稱格式
+    const filename = file.name.replace('.csv', '');
+    const pattern = /^[A-Za-z0-9]+_\d{8}_\d{6}_(left|right|rec1|rec2)$/;
+    
+    if (!pattern.test(filename)) {
+        showNotification('檔案名稱格式不符合規範，請檢查格式是否正確', 'warning');
+        // 不阻止上傳，只是警告
+    }
+    
+    return true;
+}
+
+// 顯示上傳進度
+function showUploadProgress() {
+    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('uploadSpinner').classList.remove('d-none');
+    document.getElementById('progressContainer').style.display = 'block';
+    document.getElementById('result').style.display = 'none';
+    
+    // 模擬進度（實際應用中可以使用 XMLHttpRequest 獲取真實進度）
+    let progress = 0;
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    const interval = setInterval(() => {
+        progress += Math.random() * 30;
+        if (progress > 90) progress = 90;
+        
+        progressBar.style.width = progress + '%';
+        progressText.textContent = Math.round(progress) + '%';
+        
+        if (progress >= 90) {
+            clearInterval(interval);
+        }
+    }, 200);
+}
+
+// 隱藏上傳進度
+function hideUploadProgress() {
+    document.getElementById('uploadBtn').disabled = false;
+    document.getElementById('uploadSpinner').classList.add('d-none');
+    document.getElementById('progressContainer').style.display = 'none';
+    
+    // 完成進度
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressText').textContent = '100%';
+}
+
+// 顯示上傳結果
+function showUploadResult(result, type) {
+    const resultDiv = document.getElementById('result');
+    let html = '';
+    
+    if (type === 'success') {
+        html = `
+            <div class="alert alert-success">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <strong>匯入成功！</strong>
+                </div>
+                <p class="mb-2">${result.message}</p>
+                
+                ${result.statistics ? `
+                <div class="row text-center mt-3">
+                    <div class="col-3">
+                        <div class="fw-bold text-primary">${result.statistics.successful_imports || 0}</div>
+                        <small class="text-muted">成功</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="fw-bold text-danger">${result.statistics.failed_imports || 0}</div>
+                        <small class="text-muted">失敗</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="fw-bold text-warning">${result.statistics.duplicate_skips || 0}</div>
+                        <small class="text-muted">重複</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="fw-bold text-info">${result.statistics.total_rows || 0}</div>
+                        <small class="text-muted">總計</small>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="alert alert-danger">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>匯入失敗</strong>
+                </div>
+                <p class="mb-2">${result.message}</p>
+                
+                ${result.errors && result.errors.length > 0 ? `
+                <details class="mt-3">
+                    <summary class="fw-bold">錯誤詳情</summary>
+                    <div class="mt-2">
+                        ${result.errors.slice(0, 5).map(error => 
+                            `<div class="small text-muted">第 ${error.row} 行: ${error.error}</div>`
+                        ).join('')}
+                        ${result.errors.length > 5 ? `<div class="small text-muted">... 還有 ${result.errors.length - 5} 個錯誤</div>` : ''}
+                    </div>
+                </details>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+    
+    // 滾動到結果區域
+    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// 載入最近匯入記錄
+async function loadRecentImports() {
+    try {
+        const response = await fetch('/api/import-history?limit=5');
+        const result = await response.json();
+        
+        if (result.success && result.data.length > 0) {
+            displayRecentImports(result.data);
+        }
+    } catch (error) {
+        console.error('載入匯入記錄失敗:', error);
+    }
+}
+
+// 顯示最近匯入記錄
+function displayRecentImports(imports) {
+    const container = document.getElementById('recentImports');
+    
+    const html = imports.map(item => {
+        const statusIcon = item.import_status === 'completed' ? 'check-circle text-success' : 
+                          item.import_status === 'failed' ? 'x-circle text-danger' : 
+                          'clock text-warning';
+        
+        return `
+            <div class="border-bottom pb-2 mb-2">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="fw-bold small">${item.filename}</div>
+                        <div class="small text-muted">
+                            <i class="bi bi-tools"></i> ${item.fixture || '未指定'}
+                            <span class="ms-2">
+                                <i class="bi bi-clock"></i> ${formatDateTime(item.import_time)}
+                            </span>
+                        </div>
+                        <div class="small">
+                            成功: ${item.successful_imports} | 失敗: ${item.failed_imports}
+                        </div>
+                    </div>
+                    <i class="bi bi-${statusIcon}"></i>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+}
+
+// 清除表單
+function clearForm() {
+    document.getElementById('uploadForm').reset();
+    document.getElementById('fixture1').checked = true;
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('progressContainer').style.display = 'none';
+}
+
+// 顯示通知
+function showNotification(message, type) {
+    const alertClass = type === 'error' ? 'danger' : type;
+    const iconClass = type === 'success' ? 'check-circle' : 
+                     type === 'error' ? 'exclamation-triangle' : 
+                     type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${alertClass} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+    alertDiv.innerHTML = `
+        <i class="bi bi-${iconClass}"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// 格式化日期時間
+function formatDateTime(isoString) {
+    if (!isoString) return '';
+    
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMins < 1) {
+        return '剛剛';
+    } else if (diffMins < 60) {
+        return `${diffMins} 分鐘前`;
+    } else if (diffHours < 24) {
+        return `${diffHours} 小時前`;
+    } else if (diffDays < 7) {
+        return `${diffDays} 天前`;
+    } else {
+        return date.toLocaleDateString('zh-TW', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+}
+
+// 治具選擇變化處理
+document.querySelectorAll('input[name="fixture"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        // 可以在這裡添加治具切換時的額外邏輯
+        console.log('選擇治具:', this.value);
+    });
+});

@@ -24,6 +24,9 @@ class TestRecord(Base):
     test_time = Column(String(6), nullable=False, comment='測試時間 HHMMSS')
     test_type = Column(String(10), nullable=False, comment='測試項目：left/right/rec1/rec2')
     
+    # 新增治具欄位
+    fixture = Column(String(20), nullable=True, default='治具1', comment='測試治具：治具1/治具2')
+    
     # 測試數據欄位 - 對應 [630, 800, 1000, 1250, 1600, 2000] 等頻率
     freq_630 = Column(Float, comment='630Hz 測試值')
     freq_800 = Column(Float, comment='800Hz 測試值')
@@ -54,11 +57,12 @@ class TestRecord(Base):
                         name='uq_sn_datetime_type'),
         Index('idx_sn_date', 'sn', 'test_date'),
         Index('idx_test_type', 'test_type'),
+        Index('idx_fixture', 'fixture'),  # 新增治具索引
         Index('idx_import_time', 'import_time'),
     )
     
     def __repr__(self):
-        return f"<TestRecord(sn='{self.sn}', date='{self.test_date}', time='{self.test_time}', type='{self.test_type}')>"
+        return f"<TestRecord(sn='{self.sn}', date='{self.test_date}', time='{self.test_time}', type='{self.test_type}', fixture='{self.fixture}')>"
     
     def to_dict(self):
         """轉換為字典格式，便於 JSON 序列化"""
@@ -68,6 +72,7 @@ class TestRecord(Base):
             'test_date': self.test_date,
             'test_time': self.test_time,
             'test_type': self.test_type,
+            'fixture': self.fixture,  # 新增治具資訊
             'freq_630': self.freq_630,
             'freq_800': self.freq_800,
             'freq_1000': self.freq_1000,
@@ -87,6 +92,7 @@ class ImportLog(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     filename = Column(String(255), nullable=False, comment='匯入的檔案名稱')
+    fixture = Column(String(20), nullable=True, comment='批次匯入的治具類型')  # 新增治具紀錄
     file_size = Column(Integer, comment='檔案大小（bytes）')
     total_rows = Column(Integer, comment='CSV 總行數')
     successful_imports = Column(Integer, default=0, comment='成功匯入筆數')
@@ -98,7 +104,7 @@ class ImportLog(Base):
     completed_time = Column(DateTime, comment='匯入完成時間')
     
     def __repr__(self):
-        return f"<ImportLog(filename='{self.filename}', status='{self.import_status}')>"
+        return f"<ImportLog(filename='{self.filename}', fixture='{self.fixture}', status='{self.import_status}')>"
 
 class DatabaseManager:
     """
@@ -202,6 +208,7 @@ if __name__ == "__main__":
             test_date="20250602",
             test_time="120000",
             test_type="left",
+            fixture="治具1",  # 新增治具測試
             freq_1000=-75.5,
             filename="test_file.csv"
         )

@@ -1,0 +1,73 @@
+# CSV 數據分析與管理系統 - Python 依賴套件
+
+# Web 框架
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# 資料庫相關
+SQLAlchemy==2.0.23
+Alembic==1.12.1
+
+# 數據處理
+pandas==2.1.3
+numpy==1.25.2
+
+# 檔案處理
+openpyxl==3.1.2
+
+# 開發工具
+python-dotenv==1.0.0
+
+# 安全相關
+MarkupSafe==2.1.3
+itsdangerous==2.1.2
+
+# HTTP 工具
+requests==2.31.0
+
+# 日期時間處理
+python-dateutil==2.8.2
+
+# 配置管理
+click==8.1.7
+
+# 模板引擎
+Jinja2==3.1.2
+
+# WSGI 伺服器（生產環境）
+gunicorn==21.2.0
+
+# 開發用伺服器增強
+watchdog==3.0.0
+
+# 資料驗證
+marshmallow==3.20.1
+
+# JSON 處理增強
+ujson==5.8.0
+
+# 記憶體快取（可選）
+# redis==5.0.1
+
+# 資料庫遷移工具
+flask-migrate==4.0.5
+
+# 跨域請求支援
+flask-cors==4.0.0
+
+# API 文件生成（可選）
+# flask-restx==1.2.0
+
+# 測試框架（開發用）
+pytest==7.4.3
+pytest-flask==1.3.0
+
+# 程式碼品質
+# flake8==6.1.0
+# black==23.10.1
+
+# 型別檢查
+# mypy==1.7.0
+
+# 環境變數管理
+python-decouple==3.8

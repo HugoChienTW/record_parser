@@ -1,0 +1,28 @@
+# Ignore Python Portable Environment
+python-*/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.log
+.env
+.vscode/
+.idea/
+
+# Ignore local environment files
+*.env
+*.local
+
+# Ignore backup and temporary files
+*.bak
+*.tmp
+*.temp
+*.swp
+*.swo
+*.~lock.*
+
+# Ignore compiled files
+*.dll
+*.exe
+*.pdb
+*.cache

@@ -40,13 +40,14 @@ class DatabaseService:
             session.close()
     
     def create_test_record(self, parsed_record: ParsedRecord, filename: str, 
-                          session: Optional[Session] = None) -> Tuple[bool, str]:
+                          fixture: str = "治具1", session: Optional[Session] = None) -> Tuple[bool, str]:
         """
         創建測試記錄
         
         Args:
             parsed_record: 解析後的記錄
             filename: 原始檔案名稱
+            fixture: 治具類型
             session: 資料庫會話（可選）
             
         Returns:
@@ -79,6 +80,7 @@ class DatabaseService:
                 test_date=pf.test_date,
                 test_time=pf.test_time,
                 test_type=pf.test_type,
+                fixture=fixture,  # 新增治具資訊
                 filename=filename
             )
             
@@ -107,7 +109,8 @@ class DatabaseService:
                 return _create_record(db_session)
     
     def query_records(self, sn: Optional[str] = None, test_date: Optional[str] = None,
-                     test_type: Optional[str] = None, date_range: Optional[Tuple[str, str]] = None,
+                     test_type: Optional[str] = None, fixture: Optional[str] = None,
+                     date_range: Optional[Tuple[str, str]] = None,
                      limit: int = 100, offset: int = 0) -> Tuple[List[TestRecord], int]:
         """
         查詢測試記錄
@@ -116,6 +119,7 @@ class DatabaseService:
             sn: 設備序號（可選）
             test_date: 測試日期（可選）
             test_type: 測試類型（可選）
+            fixture: 治具類型（可選）
             date_range: 日期範圍 (start_date, end_date)（可選）
             limit: 限制返回筆數
             offset: 偏移量
@@ -137,6 +141,9 @@ class DatabaseService:
             
             if test_type:
                 filters.append(TestRecord.test_type == test_type)
+            
+            if fixture:
+                filters.append(TestRecord.fixture == fixture)
             
             if date_range:
                 start_date, end_date = date_range
@@ -175,6 +182,12 @@ class DatabaseService:
                 func.count(TestRecord.id)
             ).group_by(TestRecord.test_type).all()
             
+            # 治具統計
+            fixture_stats = session.query(
+                TestRecord.fixture,
+                func.count(TestRecord.id)
+            ).group_by(TestRecord.fixture).all()
+            
             # SN 出現次數統計（前20名）
             sn_counts = session.query(
                 TestRecord.sn,
@@ -188,16 +201,19 @@ class DatabaseService:
                 'total_records': total_records,
                 'latest_date': latest_date,
                 'test_type_stats': dict(test_type_stats),
+                'fixture_stats': dict(fixture_stats),  # 新增治具統計
                 'top_sns': [{'sn': sn, 'count': count} for sn, count in sn_counts]
             }
     
-    def get_records_by_sn(self, sn: str) -> List[TestRecord]:
+    def get_records_by_sn(self, sn: str, fixture: Optional[str] = None) -> List[TestRecord]:
         """根據 SN 獲取所有相關記錄"""
         with self.get_session() as session:
-            return session.query(TestRecord)\
-                         .filter(TestRecord.sn == sn)\
-                         .order_by(TestRecord.test_date, TestRecord.test_time)\
-                         .all()
+            query = session.query(TestRecord).filter(TestRecord.sn == sn)
+            
+            if fixture:
+                query = query.filter(TestRecord.fixture == fixture)
+                
+            return query.order_by(TestRecord.test_date, TestRecord.test_time).all()
 
 class ImportService:
     """
@@ -209,13 +225,14 @@ class ImportService:
         self.db_service = DatabaseService()
     
     def import_csv_file(self, file_path: str, filename: str, 
-                       encoding: str = 'utf-8') -> Tuple[bool, Dict]:
+                       fixture: str = "治具1", encoding: str = 'utf-8') -> Tuple[bool, Dict]:
         """
         匯入 CSV 檔案
         
         Args:
             file_path: 檔案路徑
             filename: 檔案名稱
+            fixture: 治具類型
             encoding: 檔案編碼
             
         Returns:
@@ -226,6 +243,7 @@ class ImportService:
         # 創建匯入記錄
         import_log = ImportLog(
             filename=filename,
+            fixture=fixture,  # 記錄治具資訊
             import_status='processing',
             import_time=import_start_time
         )
@@ -248,7 +266,7 @@ class ImportService:
                 session.commit()
                 
                 # 解析 CSV 檔案
-                logger.info(f"開始解析檔案：{filename}")
+                logger.info(f"開始解析檔案：{filename}，治具：{fixture}")
                 parsed_records, parse_stats = parse_csv_file(file_path, encoding)
                 
                 import_log.total_rows = parse_stats['total_rows']
@@ -259,7 +277,7 @@ class ImportService:
                     try:
                         if parsed_record.is_valid:
                             success, message = self.db_service.create_test_record(
-                                parsed_record, filename, session
+                                parsed_record, filename, fixture, session
                             )
                             
                             if success:
@@ -299,7 +317,7 @@ class ImportService:
                 session.commit()
                 
                 result['success'] = True
-                result['message'] = f"匯入完成：成功 {result['statistics']['successful_imports']} 筆，" \
+                result['message'] = f"匯入完成 ({fixture})：成功 {result['statistics']['successful_imports']} 筆，" \
                                   f"失敗 {result['statistics']['failed_imports']} 筆，" \
                                   f"重複跳過 {result['statistics']['duplicate_skips']} 筆"
                 
@@ -346,13 +364,14 @@ class QueryService:
         records, total = self.db_service.query_records(**kwargs)
         return [record.to_dict() for record in records], total
     
-    def get_frequency_analysis(self, sn: str, frequency: str) -> Dict:
+    def get_frequency_analysis(self, sn: str, frequency: str, fixture: Optional[str] = None) -> Dict:
         """
         獲取指定 SN 和頻率的數據分析
         
         Args:
             sn: 設備序號
             frequency: 頻率（如 '1000'）
+            fixture: 治具類型（可選）
             
         Returns:
             Dict: 分析結果
@@ -362,20 +381,25 @@ class QueryService:
             if not freq_column:
                 return {'error': f'不支援的頻率：{frequency}'}
             
-            records = session.query(TestRecord)\
-                            .filter(TestRecord.sn == sn)\
-                            .filter(freq_column.isnot(None))\
-                            .order_by(TestRecord.test_date, TestRecord.test_time)\
-                            .all()
+            query = session.query(TestRecord)\
+                          .filter(TestRecord.sn == sn)\
+                          .filter(freq_column.isnot(None))
+            
+            if fixture:
+                query = query.filter(TestRecord.fixture == fixture)
+            
+            records = query.order_by(TestRecord.test_date, TestRecord.test_time).all()
             
             if not records:
-                return {'error': f'未找到 SN {sn} 在頻率 {frequency} 的數據'}
+                fixture_text = f" (治具: {fixture})" if fixture else ""
+                return {'error': f'未找到 SN {sn} 在頻率 {frequency}{fixture_text} 的數據'}
             
             values = [getattr(record, f'freq_{frequency}') for record in records]
             
             return {
                 'sn': sn,
                 'frequency': frequency,
+                'fixture': fixture,
                 'count': len(values),
                 'min_value': min(values),
                 'max_value': max(values),
@@ -386,16 +410,18 @@ class QueryService:
                         'date': record.test_date,
                         'time': record.test_time,
                         'type': record.test_type,
+                        'fixture': record.fixture,
                         'value': getattr(record, f'freq_{frequency}')
                     }
                     for record in records
                 ]
             }
     
-    def compare_sn_performance(self, sn1: str, sn2: str, frequency: str) -> Dict:
+    def compare_sn_performance(self, sn1: str, sn2: str, frequency: str, 
+                             fixture: Optional[str] = None) -> Dict:
         """比較兩個 SN 在指定頻率下的表現"""
-        analysis1 = self.get_frequency_analysis(sn1, frequency)
-        analysis2 = self.get_frequency_analysis(sn2, frequency)
+        analysis1 = self.get_frequency_analysis(sn1, frequency, fixture)
+        analysis2 = self.get_frequency_analysis(sn2, frequency, fixture)
         
         if 'error' in analysis1 or 'error' in analysis2:
             return {
@@ -406,6 +432,7 @@ class QueryService:
         
         return {
             'frequency': frequency,
+            'fixture': fixture,
             'sn1': {
                 'sn': sn1,
                 'avg': analysis1['avg_value'],
@@ -425,6 +452,34 @@ class QueryService:
                 'performance_better': sn1 if analysis1['avg_value'] > analysis2['avg_value'] else sn2
             }
         }
+    
+    def compare_fixture_performance(self, sn: str, frequency: str) -> Dict:
+        """比較同一 SN 在不同治具下的表現"""
+        fixture1_analysis = self.get_frequency_analysis(sn, frequency, "治具1")
+        fixture2_analysis = self.get_frequency_analysis(sn, frequency, "治具2")
+        
+        if 'error' in fixture1_analysis and 'error' in fixture2_analysis:
+            return {'error': f'SN {sn} 在兩個治具都沒有頻率 {frequency} 的數據'}
+        
+        result = {
+            'sn': sn,
+            'frequency': frequency,
+            'fixture1_data': fixture1_analysis if 'error' not in fixture1_analysis else None,
+            'fixture2_data': fixture2_analysis if 'error' not in fixture2_analysis else None
+        }
+        
+        # 如果兩個治具都有數據，進行比較
+        if 'error' not in fixture1_analysis and 'error' not in fixture2_analysis:
+            result['comparison'] = {
+                'avg_diff': fixture1_analysis['avg_value'] - fixture2_analysis['avg_value'],
+                'fixture1_better': fixture1_analysis['avg_value'] > fixture2_analysis['avg_value'],
+                'consistency_diff': abs(
+                    (fixture1_analysis['max_value'] - fixture1_analysis['min_value']) -
+                    (fixture2_analysis['max_value'] - fixture2_analysis['min_value'])
+                )
+            }
+        
+        return result
 
 # 服務實例（單例）
 database_service = DatabaseService()

@@ -8,6 +8,7 @@ __pycache__/
 .env
 .vscode/
 .idea/
+venv/
 
 # Ignore local environment files
 *.env
@@ -20,6 +21,7 @@ __pycache__/
 *.swp
 *.swo
 *.~lock.*
+data/test_records.db
 
 # Ignore compiled files
 *.dll
